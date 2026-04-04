@@ -49,7 +49,7 @@ export default function App() {
       ]);
 
       const { keyRow, labelRow, students: camuStudents } = camuData;
-      const { headers, pointsPossibleRow, canvasLookup, canvasNames } = canvasData;
+      const { headers, pointsPossibleRow, canvasLookup, canvasNames, assessments } = canvasData;
 
       const { matched, camuUnmatched, canvasUnmatched, matchedCount } =
         matchStudents(camuStudents, canvasLookup, canvasNames);
@@ -64,6 +64,7 @@ export default function App() {
         labelRow,
         headers,
         pointsPossibleRow,
+        assessments,
       });
 
       // Scroll to results after paint

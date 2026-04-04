@@ -71,6 +71,32 @@ export async function readEnrollmentPdf(file, pdfjsLib) {
   });
 }
 
+// ── Assessment column extractor ──────────────────────────────────
+const META_COLS = new Set(['Student', 'ID', 'SIS User ID', 'SIS Login ID', 'Section']);
+
+/**
+ * From the Canvas headers + Points Possible row, return the list of
+ * individual assessment columns (not summary/read-only columns).
+ * Each entry: { colIdx, rawHeader, name, maxPoints }
+ */
+export function extractAssessments(headers, pointsPossibleRow) {
+  if (!pointsPossibleRow) return [];
+  const assessments = [];
+  for (let i = 0; i < headers.length; i++) {
+    const header = headers[i];
+    if (!header || META_COLS.has(header)) continue;
+    const possible = (pointsPossibleRow[i] || '').toString().trim();
+    // Skip computed columns marked "(read only)" and empty columns
+    if (!possible || possible === '(read only)') continue;
+    const maxPoints = parseFloat(possible);
+    if (isNaN(maxPoints) || maxPoints <= 0) continue;
+    // Strip trailing Canvas ID suffix e.g. "Assignment 1 (70674)" → "Assignment 1"
+    const name = header.replace(/\s*\(\d+\)\s*$/, '').trim();
+    assessments.push({ colIdx: i, rawHeader: header, name, maxPoints });
+  }
+  return assessments;
+}
+
 // ── Canvas CSV ───────────────────────────────────────────────────
 export async function readCanvasCsv(file) {
   return new Promise((resolve, reject) => {
@@ -110,7 +136,10 @@ export async function readCanvasCsv(file) {
           canvasNames.push({ raw: rawName, norm, email: row[emailIdx] || '' });
         }
 
-        resolve({ headers, pointsPossibleRow, studentRows, studentIdx, emailIdx, canvasLookup, canvasNames });
+        // Derive assessment columns from the Points Possible row
+        const assessments = extractAssessments(headers, pointsPossibleRow);
+
+        resolve({ headers, pointsPossibleRow, studentRows, studentIdx, emailIdx, canvasLookup, canvasNames, assessments });
       },
       error: reject,
     });

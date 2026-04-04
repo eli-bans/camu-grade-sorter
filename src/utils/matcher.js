@@ -38,8 +38,13 @@ const LABEL_MAP = {
   rsSts: 'Result Status',
 };
 
-/** Build the Camu-upload-ready 2D array */
-export function buildCamuOutput(keyRow, labelRow, matched) {
+/**
+ * Build the Camu-upload-ready 2D array.
+ * @param {object|null} assessment - { colIdx, maxPoints } from extractAssessments().
+ *   If provided, the Mark column is filled with (rawScore / maxPoints * 100).toFixed(2).
+ *   If null, Mark column is left blank.
+ */
+export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
   const out = [];
   out.push(keyRow);
   const labelRowOut = keyRow.map((k, idx) => LABEL_MAP[k] || labelRow[idx] || k);
@@ -48,7 +53,15 @@ export function buildCamuOutput(keyRow, labelRow, matched) {
     const stu = m.camu;
     const row = keyRow.map(k => {
       if (k === 'IsAbs') return 'N';
-      if (k === 'Mark' || k === 'InEligible' || k === 'rsSts') return '';
+      if (k === 'InEligible' || k === 'rsSts') return '';
+      if (k === 'Mark') {
+        if (!assessment || !m.canvas) return '';
+        const raw = m.canvas[assessment.colIdx];
+        if (raw === undefined || raw === null || raw === '' || raw === 'N/A') return '';
+        const num = parseFloat(raw);
+        if (isNaN(num)) return '';
+        return parseFloat((num / assessment.maxPoints * 100).toFixed(2));
+      }
       return stu[k] !== undefined ? stu[k] : '';
     });
     out.push(row);

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import UnmatchedList from './UnmatchedList';
+import AssessmentPicker from './AssessmentPicker';
 import { downloadXlsx, buildCamuOutput, buildCanvasOutput } from '../utils/matcher';
 
 const DownloadIcon = () => (
@@ -7,23 +9,37 @@ const DownloadIcon = () => (
   </svg>
 );
 
-export default function Results({ result }) {
-  const { matchedCount, totalCamu, canvasUnmatched, camuUnmatched, matched, keyRow, labelRow, headers, pointsPossibleRow } = result;
+function sanitizeFilename(name) {
+  return name.replace(/[^a-z0-9_\-. ]/gi, '_').replace(/\s+/g, '_');
+}
 
-  const handleDownloadCamu = () => {
-    const data = buildCamuOutput(keyRow, labelRow, matched);
-    downloadXlsx(data, 'CamuUpload', 'camu_upload_ready.xlsx');
-  };
+export default function Results({ result }) {
+  const {
+    matchedCount, totalCamu, canvasUnmatched, camuUnmatched,
+    matched, keyRow, labelRow, headers, pointsPossibleRow, assessments,
+  } = result;
+
+  const [selectedAssessments, setSelectedAssessments] = useState(
+    () => new Set(assessments.map(a => a.colIdx))
+  );
+
+  const hasWarning = canvasUnmatched.length > 0 || camuUnmatched.length > 0;
+  const warningParts = [];
+  if (canvasUnmatched.length) warningParts.push(`${canvasUnmatched.length} Canvas student(s) could not be matched`);
+  if (camuUnmatched.length) warningParts.push(`${camuUnmatched.length} Camu student(s) not found in Canvas`);
 
   const handleDownloadCanvas = () => {
     const { headers: h, rows } = buildCanvasOutput(headers, pointsPossibleRow, matched);
     downloadXlsx([h, ...rows], 'CanvasGrades', 'canvas_grades_camu_order.xlsx');
   };
 
-  const hasWarning = canvasUnmatched.length > 0 || camuUnmatched.length > 0;
-  const warningParts = [];
-  if (canvasUnmatched.length) warningParts.push(`${canvasUnmatched.length} Canvas student(s) could not be matched`);
-  if (camuUnmatched.length) warningParts.push(`${camuUnmatched.length} Camu student(s) not found in Canvas`);
+  const handleDownloadAssessment = assessment => {
+    const data = buildCamuOutput(keyRow, labelRow, matched, assessment);
+    const safeName = sanitizeFilename(assessment.name);
+    downloadXlsx(data, 'CamuUpload', `camu_upload_${safeName}.xlsx`);
+  };
+
+  const selectedList = assessments.filter(a => selectedAssessments.has(a.colIdx));
 
   return (
     <div id="results">
@@ -77,23 +93,43 @@ export default function Results({ result }) {
       />
 
       <hr className="divider" />
-      <div className="section-label" style={{ marginBottom: 16 }}>Step 3 — Download outputs</div>
 
-      <div className="download-grid">
-        <div className="download-card">
-          <div className="download-card-label">Output 1</div>
-          <h3>Camu Upload Ready</h3>
-          <p>Fill in the Mark column, then upload this file to Camu.</p>
-          <button className="btn-download" onClick={handleDownloadCamu}>
-            <DownloadIcon />
-            Download Camu Upload Ready
-          </button>
+      {/* Assessment picker */}
+      <AssessmentPicker
+        assessments={assessments}
+        selected={selectedAssessments}
+        onChange={setSelectedAssessments}
+      />
+
+      <hr className="divider" />
+      <div className="section-label" style={{ marginBottom: 16 }}>Step 4 — Download outputs</div>
+
+      {/* Per-assessment Camu upload files */}
+      {selectedList.length > 0 ? (
+        <div className="download-assessment-grid">
+          {selectedList.map(a => (
+            <div className="download-card" key={a.colIdx}>
+              <div className="download-card-label">Camu Upload</div>
+              <h3>{a.name}</h3>
+              <p>Marks filled as percentage of {a.maxPoints} pts, to 2 d.p.</p>
+              <button className="btn-download" onClick={() => handleDownloadAssessment(a)}>
+                <DownloadIcon />
+                Download
+              </button>
+            </div>
+          ))}
         </div>
-        <div className="download-card">
-          <div className="download-card-label">Output 2</div>
+      ) : (
+        <p className="picker-none-msg">No assessments selected — toggle some above to generate files.</p>
+      )}
+
+      {/* Canvas reference file always available */}
+      <div className="download-ref-row">
+        <div className="download-card download-card--ref">
+          <div className="download-card-label">Reference</div>
           <h3>Canvas Grades (Camu Order)</h3>
-          <p>Full Canvas grades reordered to match Camu sequence — use as reference.</p>
-          <button className="btn-download" onClick={handleDownloadCanvas}>
+          <p>Full Canvas export reordered to match Camu student sequence.</p>
+          <button className="btn-download btn-download--secondary" onClick={handleDownloadCanvas}>
             <DownloadIcon />
             Download Canvas Grades (Camu Order)
           </button>
