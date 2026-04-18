@@ -134,6 +134,10 @@ export default function App() {
       {error && <div className="error-box" style={{ display: 'block' }}>{error}</div>}
 
       {result && <Results result={result} />}
+
+      <footer className="footer">
+        Built by <span className="footer-name">Elikem Bansah</span>
+      </footer>
     </div>
   );
 }
