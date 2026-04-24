@@ -1,9 +1,11 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { parseCanvasName } from './normalize';
+import { validateFile } from './sanitize';
 
 // ── Camu XLSX ────────────────────────────────────────────────────
 export async function readCamuXlsx(file) {
+  await validateFile(file, 'xlsx');
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -32,6 +34,7 @@ export async function readCamuXlsx(file) {
 
 // ── Enrollment PDF ───────────────────────────────────────────────
 export async function readEnrollmentPdf(file, pdfjsLib) {
+  await validateFile(file, 'pdf');
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = async e => {
@@ -99,6 +102,7 @@ export function extractAssessments(headers, pointsPossibleRow) {
 
 // ── Canvas CSV ───────────────────────────────────────────────────
 export async function readCanvasCsv(file) {
+  await validateFile(file, 'csv');
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: false,

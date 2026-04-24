@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { parseCamuName } from './normalize';
+import { sanitizeCell } from './sanitize';
 
 /**
  * Match Camu students against Canvas lookup.
@@ -62,7 +63,7 @@ export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
         if (isNaN(num)) return '';
         return parseFloat(num.toFixed(2));
       }
-      return stu[k] !== undefined ? stu[k] : '';
+      return sanitizeCell(stu[k] !== undefined ? String(stu[k]) : '');
     });
     out.push(row);
   }
@@ -72,11 +73,11 @@ export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
 /** Build the Canvas-reordered 2D array (with header row) */
 export function buildCanvasOutput(headers, pointsPossibleRow, matched) {
   const rows = [];
-  if (pointsPossibleRow) rows.push(pointsPossibleRow);
+  if (pointsPossibleRow) rows.push(pointsPossibleRow.map(sanitizeCell));
   for (const m of matched) {
-    if (m.canvas) rows.push(m.canvas);
+    if (m.canvas) rows.push(m.canvas.map(sanitizeCell));
   }
-  return { headers, rows };
+  return { headers: headers.map(sanitizeCell), rows };
 }
 
 export function downloadXlsx(data, sheetName, fileName) {
