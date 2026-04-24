@@ -111,7 +111,7 @@ export default function Results({ result }) {
             <div className="download-card" key={a.colIdx}>
               <div className="download-card-label">Camu Upload</div>
               <h3>{a.name}</h3>
-              <p>Marks filled as percentage of {a.maxPoints} pts, to 2 d.p.</p>
+              <p>Raw score out of {a.maxPoints} pts, to 2 d.p. Camu scales automatically.</p>
               <button className="btn-download" onClick={() => handleDownloadAssessment(a)}>
                 <DownloadIcon />
                 Download

@@ -60,7 +60,7 @@ export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
         if (raw === undefined || raw === null || raw === '' || raw === 'N/A') return '';
         const num = parseFloat(raw);
         if (isNaN(num)) return '';
-        return parseFloat((num / assessment.maxPoints * 100).toFixed(2));
+        return parseFloat(num.toFixed(2));
       }
       return stu[k] !== undefined ? stu[k] : '';
     });

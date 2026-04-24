@@ -21,7 +21,7 @@ export default function AssessmentPicker({ assessments, selected, onChange }) {
           <div className="section-label" style={{ marginBottom: 4 }}>Step 3 — Select assessments</div>
           <p className="picker-sub">
             Choose which assessments to export. Each selected assessment generates its own
-            Camu upload file with marks pre-filled as percentages (2 d.p.).
+            Camu upload file with raw scores pre-filled (2 d.p.) — Camu scales automatically.
           </p>
         </div>
         <div className="picker-actions">
