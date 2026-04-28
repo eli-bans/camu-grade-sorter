@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import UnmatchedList from './UnmatchedList';
 import AssessmentPicker from './AssessmentPicker';
-import { downloadXlsx, buildCamuOutput, buildCanvasOutput } from '../utils/matcher';
+import {
+  downloadXlsx,
+  buildCamuOutput,
+  buildCanvasOutput,
+  countDefaultedZeroScores,
+} from '../utils/matcher';
 
 const DownloadIcon = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" style={{ width: 14, height: 14, flexShrink: 0 }}>
@@ -16,7 +21,7 @@ function sanitizeFilename(name) {
 export default function Results({ result }) {
   const {
     matchedCount, totalCamu, canvasUnmatched, camuUnmatched,
-    matched, keyRow, labelRow, headers, pointsPossibleRow, assessments,
+    matched, keyRow, labelRow, headers, pointsPossibleRow, assessments = [],
   } = result;
 
   const [selectedAssessments, setSelectedAssessments] = useState(
@@ -40,6 +45,7 @@ export default function Results({ result }) {
   };
 
   const selectedList = assessments.filter(a => selectedAssessments.has(a.colIdx));
+  const defaultedZeroCount = countDefaultedZeroScores(matched, selectedList);
 
   return (
     <div id="results">
@@ -103,6 +109,25 @@ export default function Results({ result }) {
 
       <hr className="divider" />
       <div className="section-label" style={{ marginBottom: 16 }}>Step 4 — Download outputs</div>
+
+      {defaultedZeroCount > 0 && (
+        <div className="warning-banner" style={{ marginBottom: 14 }}>
+          <span className="warning-icon">⚠</span>
+          <span>
+            {defaultedZeroCount} missing score value(s) (for example: dash, blank, N/A) were detected
+            in selected assessments and will be exported as 0.00.
+          </span>
+        </div>
+      )}
+
+      <div className="info-banner" style={{ marginBottom: 16 }}>
+        <span className="info-icon">i</span>
+        <span>
+          Disclaimer: Please quickly review generated files before Camu upload. This tool automates
+          matching and mark filling, but final responsibility for grade accuracy remains with the
+          lecturer/TA.
+        </span>
+      </div>
 
       {/* Per-assessment Camu upload files */}
       {selectedList.length > 0 ? (

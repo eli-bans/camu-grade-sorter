@@ -42,7 +42,7 @@ const LABEL_MAP = {
 /**
  * Build the Camu-upload-ready 2D array.
  * @param {object|null} assessment - { colIdx, maxPoints } from extractAssessments().
- *   If provided, the Mark column is filled with (rawScore / maxPoints * 100).toFixed(2).
+ *   If provided, the Mark column is filled with raw score to 2 d.p.
  *   If null, Mark column is left blank.
  */
 export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
@@ -57,10 +57,7 @@ export function buildCamuOutput(keyRow, labelRow, matched, assessment = null) {
       if (k === 'InEligible' || k === 'rsSts') return '';
       if (k === 'Mark') {
         if (!assessment || !m.canvas) return '';
-        const raw = m.canvas[assessment.colIdx];
-        if (raw === undefined || raw === null || raw === '' || raw === 'N/A') return '';
-        const num = parseFloat(raw);
-        if (isNaN(num)) return '';
+        const num = parseCanvasScore(m.canvas[assessment.colIdx]);
         return parseFloat(num.toFixed(2));
       }
       return sanitizeCell(stu[k] !== undefined ? String(stu[k]) : '');
@@ -80,9 +77,51 @@ export function buildCanvasOutput(headers, pointsPossibleRow, matched) {
   return { headers: headers.map(sanitizeCell), rows };
 }
 
+/**
+ * Count how many score cells are treated as missing and defaulted to 0
+ * for the selected assessments.
+ */
+export function countDefaultedZeroScores(matched, assessments) {
+  if (!assessments?.length) return 0;
+  let count = 0;
+  for (const m of matched) {
+    if (!m.canvas) continue;
+    for (const assessment of assessments) {
+      if (isMissingScore(m.canvas[assessment.colIdx])) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
 export function downloadXlsx(data, sheetName, fileName) {
   const ws = XLSX.utils.aoa_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
   XLSX.writeFile(wb, fileName);
+}
+
+/**
+ * Parse a Canvas score into a number.
+ * Missing/non-numeric placeholders default to 0.
+ */
+function parseCanvasScore(raw) {
+  if (raw === undefined || raw === null) return 0;
+  const text = String(raw).trim().toLowerCase();
+  if (!text || text === 'n/a' || text === 'na' || text === 'null' || text === 'undefined' || text === '-') {
+    return 0;
+  }
+  const num = parseFloat(text);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function isMissingScore(raw) {
+  if (raw === undefined || raw === null) return true;
+  const text = String(raw).trim().toLowerCase();
+  if (!text || text === 'n/a' || text === 'na' || text === 'null' || text === 'undefined' || text === '-') {
+    return true;
+  }
+  const num = parseFloat(text);
+  return !Number.isFinite(num);
 }
