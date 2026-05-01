@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import UnmatchedList from './UnmatchedList';
+import ManualLinker from './ManualLinker';
 import AssessmentPicker from './AssessmentPicker';
 import {
   downloadXlsx,
@@ -27,25 +28,59 @@ export default function Results({ result }) {
   const [selectedAssessments, setSelectedAssessments] = useState(
     () => new Set(assessments.map(a => a.colIdx))
   );
+  const [manualLinks, setManualLinks] = useState([]);
 
-  const hasWarning = canvasUnmatched.length > 0 || camuUnmatched.length > 0;
+  const handleLink = (camuStu, canvasItem) => {
+    setManualLinks(prev => [...prev, { camu: camuStu, canvasItem }]);
+  };
+  const handleUnlink = idx => {
+    setManualLinks(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const linkedCamuStudents = useMemo(() => new Set(manualLinks.map(l => l.camu)), [manualLinks]);
+  const linkedCanvasNorms = useMemo(() => new Set(manualLinks.map(l => l.canvasItem.norm)), [manualLinks]);
+
+  const effectiveCamuUnmatched = useMemo(
+    () => camuUnmatched.filter(s => !linkedCamuStudents.has(s)),
+    [camuUnmatched, linkedCamuStudents]
+  );
+  const effectiveCanvasUnmatched = useMemo(
+    () => canvasUnmatched.filter(c => !linkedCanvasNorms.has(c.norm)),
+    [canvasUnmatched, linkedCanvasNorms]
+  );
+
+  const effectiveMatched = useMemo(() => {
+    const linkMap = new Map(manualLinks.map(l => [l.camu, l.canvasItem.row]));
+    return matched.map(m =>
+      m.canvas === null && linkMap.has(m.camu)
+        ? { camu: m.camu, canvas: linkMap.get(m.camu) }
+        : m
+    );
+  }, [matched, manualLinks]);
+
+  const effectiveMatchedCount = useMemo(
+    () => effectiveMatched.filter(m => m.canvas !== null).length,
+    [effectiveMatched]
+  );
+
+  const hasWarning = effectiveCanvasUnmatched.length > 0 || effectiveCamuUnmatched.length > 0;
   const warningParts = [];
-  if (canvasUnmatched.length) warningParts.push(`${canvasUnmatched.length} Canvas student(s) could not be matched`);
-  if (camuUnmatched.length) warningParts.push(`${camuUnmatched.length} Camu student(s) not found in Canvas`);
+  if (effectiveCanvasUnmatched.length) warningParts.push(`${effectiveCanvasUnmatched.length} Canvas student(s) could not be matched`);
+  if (effectiveCamuUnmatched.length) warningParts.push(`${effectiveCamuUnmatched.length} Camu student(s) not found in Canvas`);
 
   const handleDownloadCanvas = () => {
-    const { headers: h, rows } = buildCanvasOutput(headers, pointsPossibleRow, matched);
+    const { headers: h, rows } = buildCanvasOutput(headers, pointsPossibleRow, effectiveMatched);
     downloadXlsx([h, ...rows], 'CanvasGrades', 'canvas_grades_camu_order.xlsx');
   };
 
   const handleDownloadAssessment = assessment => {
-    const data = buildCamuOutput(keyRow, labelRow, matched, assessment);
+    const data = buildCamuOutput(keyRow, labelRow, effectiveMatched, assessment);
     const safeName = sanitizeFilename(assessment.name);
     downloadXlsx(data, 'CamuUpload', `camu_upload_${safeName}.xlsx`);
   };
 
   const selectedList = assessments.filter(a => selectedAssessments.has(a.colIdx));
-  const defaultedZeroCount = countDefaultedZeroScores(matched, selectedList);
+  const defaultedZeroCount = countDefaultedZeroScores(effectiveMatched, selectedList);
 
   return (
     <div id="results">
@@ -61,15 +96,15 @@ export default function Results({ result }) {
 
       <div className="summary-grid">
         <div className="stat-card">
-          <div className="stat-num green">{matchedCount} / {totalCamu}</div>
+          <div className="stat-num green">{effectiveMatchedCount} / {totalCamu}</div>
           <div className="stat-desc">Students matched</div>
         </div>
         <div className="stat-card">
-          <div className="stat-num amber">{canvasUnmatched.length}</div>
+          <div className="stat-num amber">{effectiveCanvasUnmatched.length}</div>
           <div className="stat-desc">In Canvas, not matched in Camu</div>
         </div>
         <div className="stat-card">
-          <div className="stat-num amber">{camuUnmatched.length}</div>
+          <div className="stat-num amber">{effectiveCamuUnmatched.length}</div>
           <div className="stat-desc">In Camu, not found in Canvas</div>
         </div>
       </div>
@@ -77,7 +112,7 @@ export default function Results({ result }) {
       <UnmatchedList
         title="Canvas only"
         tagClass="tag-amber"
-        items={canvasUnmatched}
+        items={effectiveCanvasUnmatched}
         renderRow={item => (
           <>
             <span className="unmatched-name">{item.raw}</span>
@@ -89,7 +124,7 @@ export default function Results({ result }) {
       <UnmatchedList
         title="Camu only"
         tagClass="tag-red"
-        items={camuUnmatched}
+        items={effectiveCamuUnmatched}
         renderRow={item => (
           <>
             <span className="unmatched-name">{item['StuRollNo']}</span>
@@ -97,6 +132,16 @@ export default function Results({ result }) {
           </>
         )}
       />
+
+      {(effectiveCamuUnmatched.length > 0 && effectiveCanvasUnmatched.length > 0) || manualLinks.length > 0 ? (
+        <ManualLinker
+          camuUnmatched={effectiveCamuUnmatched}
+          canvasUnmatched={effectiveCanvasUnmatched}
+          links={manualLinks}
+          onLink={handleLink}
+          onUnlink={handleUnlink}
+        />
+      ) : null}
 
       <hr className="divider" />
 

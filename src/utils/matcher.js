@@ -24,7 +24,9 @@ export function matchStudents(camuStudents, canvasLookup, canvasNames) {
     }
   }
 
-  const canvasUnmatched = canvasNames.filter(c => !matchedCanvasNorms.has(c.norm));
+  const canvasUnmatched = canvasNames
+    .filter(c => !matchedCanvasNorms.has(c.norm))
+    .map(c => ({ ...c, row: canvasLookup[c.norm] }));
   const matchedCount = matched.filter(m => m.canvas !== null).length;
 
   return { matched, camuUnmatched, canvasUnmatched, matchedCount };
